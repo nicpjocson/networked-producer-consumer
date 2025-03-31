@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.Socket;
+import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.nio.file.Files;
@@ -10,13 +11,6 @@ public class Producer {
     private static final int PORT = 12345;
    // private static final int BUFFER_SIZE = 1024;
 
-    // Num of Producer threads, will add config later idk
-    private static final int NUM_PRODUCERS = 2;
-
-    int numProducers = Integer.parseInt(config.getProperty("p", "2"));
-    int maxQueueLength = Integer.parseInt(config.getProperty("q", "10"));
-
-
     // idk change the name of the folders
     private static final String[] FOLDERS = {
         "folder1",
@@ -25,6 +19,30 @@ public class Producer {
     };
 
     public static void main(String[] args) {
+
+        Properties config = new Properties();
+        try (InputStream input = new FileInputStream("config.properties")) {
+            config.load(input);
+        } catch (IOException e) {
+            System.out.println("Failed to load configuration file: " + e.getMessage());
+            return;
+        }
+
+        int NUM_PRODUCERS = Integer.parseInt(config.getProperty("p", "2"));
+        int QUEUE_LENGTH = Integer.parseInt(config.getProperty("q", "10"));
+
+
+        if (NUM_PRODUCERS < 1) {
+            System.out.println("Invalid number of producers");
+            return;
+        }
+
+        if (QUEUE_LENGTH < 1) {
+            System.out.println("Invalid queue length");
+            return;
+        }
+
+
         ExecutorService executor = Executors.newFixedThreadPool(NUM_PRODUCERS);
         for (int i = 0; i < NUM_PRODUCERS; i++) {
             executor.execute(new ProducerThread(HOST, PORT, FOLDERS[i]));
