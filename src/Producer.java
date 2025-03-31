@@ -17,65 +17,49 @@ public class Producer {
         "folder3",
     };
     
-    public static int[] getInputs() {
-        // Config values
+    public static int getInputs() {
+        //Config values
         Properties config = new Properties();
-        
         try (InputStream input = new FileInputStream("config.properties")) {
             config.load(input);
         } catch (IOException e) {
             System.out.println("Failed to load configuration file: " + e.getMessage());
-            return null; // Returning null to indicate failure
+            return -1;
         }
-    
-        String p = config.getProperty("p");
-        String q = config.getProperty("q");
-    
-        if (p == null || p.isEmpty()) {
-            System.out.println("Configuration property 'p' not found or is empty.");
-            return null;
+
+        // Retrieve the value from the config
+        String c = config.getProperty("c");
+        int NUM_CONSUMERS;
+
+        if (c == null || c.isEmpty()) {
+            System.out.println("Configuration property 'c' not found or is empty.");
+            return -1;
         }
-    
-        if (q == null || q.isEmpty()) {
-            System.out.println("Configuration property 'q' not found or is empty.");
-            return null;
-        }
-    
-        int NUM_PRODUCERS, QUEUE_LENGTH;
-    
+
         try {
-            NUM_PRODUCERS = Integer.parseInt(p);
-            QUEUE_LENGTH = Integer.parseInt(q);
-    
-            // Validate values
-            if (NUM_PRODUCERS <= 0) {
-                System.out.println("Number of producers cannot be 0 or negative.");
-                return null;
-            }
-    
-            if (QUEUE_LENGTH <= 0) {
-                System.out.println("Queue length cannot be 0 or negative.");
-                return null;
+            NUM_CONSUMERS = Integer.parseInt(c);
+            
+            // Check if the value is negative
+            if (NUM_CONSUMERS <= 0) {
+                System.out.println("Number of consumers threads cannot be 0 or negative.");
+                return -1;
             }    
-    
         } catch (NumberFormatException e) {
-            System.out.println("Invalid number format or integer out of bounds for 'p' or 'q'.");
-            return null;
+            System.out.println("Invalid number format or out of integer bounds for c.");
+            return -1;
         }
-    
-        return new int[]{NUM_PRODUCERS, QUEUE_LENGTH};
+
+        return NUM_CONSUMERS;
     }
     
     public static void main(String[] args) {
-        int[] inputs = getInputs();
-        if (inputs == null) {
+        int NUM_PRODUCERS = getInputs();
+        if (NUM_PRODUCERS == -1) {
             System.out.println("Failed to load configuration values.");
             return;
         }
 
-        int NUM_PRODUCERS = inputs[0];
-        int QUEUE_LENGTH = inputs[1];
-        System.out.println("Producers: " + NUM_PRODUCERS + ", Queue Length: " + QUEUE_LENGTH);
+        System.out.println("Producers: " + NUM_PRODUCERS);
 
         //making da thread pool
         ExecutorService executor = Executors.newFixedThreadPool(NUM_PRODUCERS);
