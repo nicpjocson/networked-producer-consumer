@@ -20,6 +20,8 @@ public class Producer {
 
     public static void main(String[] args) {
 
+
+        //Config values
         Properties config = new Properties();
         try (InputStream input = new FileInputStream("config.properties")) {
             config.load(input);
@@ -32,6 +34,7 @@ public class Producer {
         int QUEUE_LENGTH = Integer.parseInt(config.getProperty("q", "10"));
 
 
+        //Validating config values
         if (NUM_PRODUCERS < 1) {
             System.out.println("Invalid number of producers");
             return;
@@ -43,7 +46,10 @@ public class Producer {
         }
 
 
+        //making da thread pool
         ExecutorService executor = Executors.newFixedThreadPool(NUM_PRODUCERS);
+        
+        // assinging the folgers to the p threads
         for (int i = 0; i < NUM_PRODUCERS; i++) {
             executor.execute(new ProducerThread(HOST, PORT, FOLDERS[i]));
         }
