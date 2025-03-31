@@ -33,7 +33,7 @@ public class Consumer {
                 return -1;
             }    
         } catch (NumberFormatException e) {
-            System.out.println("Invalid number format for 'c' or out of integer bounds: " + c);
+            System.out.println("Invalid number format or out of integer bounds for c.");
             return -1;
         }
 

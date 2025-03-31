@@ -3,7 +3,6 @@ import java.net.Socket;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.nio.file.Files;
 
 public class Producer {
 
@@ -17,34 +16,66 @@ public class Producer {
         "folder2",
         "folder3",
     };
-
-    public static void main(String[] args) {
-
-
-        //Config values
+    
+    public static int[] getInputs() {
+        // Config values
         Properties config = new Properties();
+        
         try (InputStream input = new FileInputStream("config.properties")) {
             config.load(input);
         } catch (IOException e) {
             System.out.println("Failed to load configuration file: " + e.getMessage());
+            return null; // Returning null to indicate failure
+        }
+    
+        String p = config.getProperty("p");
+        String q = config.getProperty("q");
+    
+        if (p == null || p.isEmpty()) {
+            System.out.println("Configuration property 'p' not found or is empty.");
+            return null;
+        }
+    
+        if (q == null || q.isEmpty()) {
+            System.out.println("Configuration property 'q' not found or is empty.");
+            return null;
+        }
+    
+        int NUM_PRODUCERS, QUEUE_LENGTH;
+    
+        try {
+            NUM_PRODUCERS = Integer.parseInt(p);
+            QUEUE_LENGTH = Integer.parseInt(q);
+    
+            // Validate values
+            if (NUM_PRODUCERS <= 0) {
+                System.out.println("Number of producers cannot be 0 or negative.");
+                return null;
+            }
+    
+            if (QUEUE_LENGTH <= 0) {
+                System.out.println("Queue length cannot be 0 or negative.");
+                return null;
+            }    
+    
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid number format or integer out of bounds for 'p' or 'q'.");
+            return null;
+        }
+    
+        return new int[]{NUM_PRODUCERS, QUEUE_LENGTH};
+    }
+    
+    public static void main(String[] args) {
+        int[] inputs = getInputs();
+        if (inputs == null) {
+            System.out.println("Failed to load configuration values.");
             return;
         }
 
-        int NUM_PRODUCERS = Integer.parseInt(config.getProperty("p", "2"));
-        int QUEUE_LENGTH = Integer.parseInt(config.getProperty("q", "10"));
-
-
-        //Validating config values
-        if (NUM_PRODUCERS < 1) {
-            System.out.println("Invalid number of producers");
-            return;
-        }
-
-        if (QUEUE_LENGTH < 1) {
-            System.out.println("Invalid queue length");
-            return;
-        }
-
+        int NUM_PRODUCERS = inputs[0];
+        int QUEUE_LENGTH = inputs[1];
+        System.out.println("Producers: " + NUM_PRODUCERS + ", Queue Length: " + QUEUE_LENGTH);
 
         //making da thread pool
         ExecutorService executor = Executors.newFixedThreadPool(NUM_PRODUCERS);
@@ -57,7 +88,6 @@ public class Producer {
     }
 
 }
-
 
 class ProducerThread implements Runnable {
 
