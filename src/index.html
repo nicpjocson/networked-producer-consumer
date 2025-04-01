@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consumer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container" id="boxContainer"></div>
+    <script>
+        // TEMPORARY
+        const videoData = [
+            { title: "Video 1", thumbnail: "placeholder_thumbnail.png", videoSrc: "video1.mp4" },
+            { title: "Video 2", thumbnail: "placeholder_thumbnail.png", videoSrc: "video2.mp4" },
+            { title: "Video 3", thumbnail: "placeholder_thumbnail.png", videoSrc: "video3.mp4" },
+            { title: "Video 4", thumbnail: "placeholder_thumbnail.png", videoSrc: "video4.mp4" },
+            { title: "Video 5", thumbnail: "placeholder_thumbnail.png", videoSrc: "video5.mp4" }
+        ];
+
+        function createBoxes(videos) {
+            const container = document.getElementById('boxContainer');
+            videos.forEach(video => {
+                const box = document.createElement('div');
+                box.className = 'box';
+
+                const videoContainer = document.createElement('div');
+                videoContainer.className = 'video-container';
+
+                const thumbnail = document.createElement('img');
+                thumbnail.className = 'thumbnail';
+                thumbnail.src = video.thumbnail;
+                thumbnail.alt = video.title;
+
+                const videoElement = document.createElement('video');
+                videoElement.src = video.videoSrc;
+                videoElement.muted = true;
+                videoElement.preload = "auto";
+                videoElement.loop = false;
+
+                videoContainer.appendChild(thumbnail);
+                videoContainer.appendChild(videoElement);
+
+                videoContainer.addEventListener('mouseenter', () => {
+                    thumbnail.style.display = 'none';
+                    videoElement.style.display = 'block';
+                    videoElement.currentTime = 0;
+                    videoElement.play();
+                    setTimeout(() => videoElement.pause(), 10000); // Stop after 10 seconds
+                });
+
+                videoContainer.addEventListener('mouseleave', () => {
+                    videoElement.pause();
+                    videoElement.style.display = 'none';
+                    thumbnail.style.display = 'block';
+                });
+
+                const title = document.createElement('div');
+                title.className = 'title';
+                title.textContent = video.title;
+
+                box.appendChild(videoContainer);
+                box.appendChild(title);
+                container.appendChild(box);
+            });
+        }
+
+        createBoxes(videoData);
+    </script>
+</body>
+</html>
