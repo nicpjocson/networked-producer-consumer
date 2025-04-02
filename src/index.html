@@ -18,53 +18,67 @@
             { title: "Video 5", thumbnail: "placeholder_thumbnail.png", videoSrc: "kyle_korver_11pts.mp4" }
         ];
 
-        function createBoxes(videos) {
-            const container = document.getElementById('boxContainer');
-            videos.forEach(video => {
-                const box = document.createElement('div');
-                box.className = 'box';
+    function createBoxes(videos) {
+        const container = document.getElementById('boxContainer');
+        videos.forEach(video => {
+            const box = document.createElement('div');
+            box.className = 'box';
 
-                const videoContainer = document.createElement('div');
-                videoContainer.className = 'video-container';
+            const videoContainer = document.createElement('div');
+            videoContainer.className = 'video-container';
 
-                const thumbnail = document.createElement('img');
-                thumbnail.className = 'thumbnail';
-                thumbnail.src = video.thumbnail;
-                thumbnail.alt = video.title;
+            const thumbnail = document.createElement('img');
+            thumbnail.className = 'thumbnail';
+            thumbnail.src = video.thumbnail;
+            thumbnail.alt = video.title;
 
-                const videoElement = document.createElement('video');
-                videoElement.src = video.videoSrc;
-                videoElement.muted = true;
-                videoElement.preload = "auto";
-                videoElement.loop = false;
+            const videoElement = document.createElement('video');
+            videoElement.src = video.videoSrc;
+            videoElement.muted = true;
+            videoElement.preload = "auto";
+            videoElement.loop = false;
+            videoElement.controls = true;
 
-                videoContainer.appendChild(thumbnail);
-                videoContainer.appendChild(videoElement);
+            videoContainer.appendChild(thumbnail);
+            videoContainer.appendChild(videoElement);
 
-                videoContainer.addEventListener('mouseenter', () => {
-                    thumbnail.style.display = 'none';
-                    videoElement.style.display = 'block';
-                    videoElement.currentTime = 0;
-                    videoElement.play();
-                    setTimeout(() => videoElement.pause(), 10000); // Stop after 10 seconds
-                });
-
-                videoContainer.addEventListener('mouseleave', () => {
-                    videoElement.pause();
-                    videoElement.style.display = 'none';
-                    thumbnail.style.display = 'block';
-                });
-
-                const title = document.createElement('div');
-                title.className = 'title';
-                title.textContent = video.title;
-
-                box.appendChild(videoContainer);
-                box.appendChild(title);
-                container.appendChild(box);
+            videoContainer.addEventListener('mouseenter', () => {
+                thumbnail.style.display = 'none';
+                videoElement.style.display = 'block';
+                videoElement.currentTime = 0;
+                videoElement.play();
+                setTimeout(() => videoElement.pause(), 10000); // 10 second  preview
             });
-        }
 
+            videoContainer.addEventListener('mouseleave', () => {
+                videoElement.pause();
+                videoElement.style.display = 'none';
+                thumbnail.style.display = 'block';
+            });
+
+            // Fullscreen on click
+            videoContainer.addEventListener('click', () => {
+                if (videoElement.requestFullscreen) {
+                    videoElement.requestFullscreen();
+                } else if (videoElement.mozRequestFullScreen) { // Firefox
+                    videoElement.mozRequestFullScreen();
+                } else if (videoElement.webkitRequestFullscreen) { // Chrome, Safari
+                    videoElement.webkitRequestFullscreen();
+                } else if (videoElement.msRequestFullscreen) { // IE/Edge
+                    videoElement.msRequestFullscreen();
+                }
+                videoElement.play();
+            });
+
+            const title = document.createElement('div');
+            title.className = 'title';
+            title.textContent = video.title;
+
+            box.appendChild(videoContainer);
+            box.appendChild(title);
+            container.appendChild(box);
+        });
+    }
         createBoxes(videoData);
     </script>
 </body>
