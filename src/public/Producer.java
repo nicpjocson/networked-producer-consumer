@@ -1,10 +1,7 @@
 import java.io.*;
 import java.net.Socket;
 import java.util.Properties;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class Producer {
 
@@ -54,7 +51,7 @@ public class Producer {
 
         return NUM_PRODUCERS;
     }
-
+    /*
     public static int getInputsQ() {
         //Config values
         Properties config = new Properties();
@@ -89,27 +86,30 @@ public class Producer {
 
         return QUEUE_LENGTH;
     }
+    */
     
     public static void main(String[] args) {
         int NUM_PRODUCERS = getInputsP();
-        int QUEUE_LENGTH = getInputsQ();
+        // int QUEUE_LENGTH = getInputsQ();
         if (NUM_PRODUCERS == -1) {
             System.out.println("Failed to load configuration values.");
             return;
         }
 
+        /*
         if (QUEUE_LENGTH == -1) {
             System.out.println("Failed to load configuration values.");
             return;
         }
+        */
 
-        System.out.println("Queue Length: " + QUEUE_LENGTH);
+        // System.out.println("Queue Length: " + QUEUE_LENGTH);
 
         System.out.println("Producers: " + NUM_PRODUCERS);
 
-        BlockingQueue<File> QUEUE = new ArrayBlockingQueue<>(QUEUE_LENGTH);
+        // BlockingQueue<File> QUEUE = new ArrayBlockingQueue<>(QUEUE_LENGTH);
 
-
+        /* 
         //making da thread pool
         ExecutorService executor = Executors.newFixedThreadPool(NUM_PRODUCERS);
         
@@ -119,6 +119,7 @@ public class Producer {
             executor.execute(new ProducerThread(HOST, PORT, assignedFolder, QUEUE));
         }
         executor.shutdown();
+        */
     }
 
 }
