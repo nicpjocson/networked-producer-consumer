@@ -10,7 +10,7 @@ import java.net.InetSocketAddress;
 public class MyHttpServer {
     public static void main(String[] args) throws IOException {
         int port = 8000;
-        String rootDir = "src/public";  // Corrected to match your folder structure
+        String rootDir = "src/public"; // Where .html is
 
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/", new StaticFileHandler(rootDir));
