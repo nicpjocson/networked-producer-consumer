@@ -1,4 +1,8 @@
+import java.io.DataInputStream;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -35,35 +39,92 @@ public class Consumer {
             executorService.submit(this::processSocket);
         }
 
-        while (this.isRunning) { 
-            // Waiting for sockets
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            System.out.println("Consumer started on port " + port);
 
-            // Check if queue is full, if full
-                // Notify its full
-                // Don't accept
+            while (isRunning) {
+                try {
+                    Socket clientSocket = serverSocket.accept();
+                    System.out.println("Remaining Capacity Queue: " + videoQueue.remainingCapacity());
 
-            // Put video into queue if it is not full
+                    if (videoQueue.remainingCapacity() == 0) {
+                        // BONUS TODO: Notify Producer Queue is Full
+                        System.out.println("Queue full, rejecting: " + clientSocket.getInetAddress());
+                        clientSocket.close();
+                    } else {
+                        videoQueue.put(clientSocket);
+                        System.out.println("Placed into Queue: " + clientSocket.getInetAddress());
+                    }
+                } catch (IOException | InterruptedException e) {
+                    System.err.println("Error handling socket: " + e.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to start server: " + e.getMessage());
+        } finally {
+            executorService.shutdown();
         }
     }
 
     public void processSocket() {
         while (this.isRunning) {
-            Socket socket;
-            try {
-                queueSemaphore.acquire();
-                // Take a video from queue
-                socket = videoQueue.take();
+            Socket socket = null;
+            if (!videoQueue.isEmpty()) {
+                try {
+                    queueSemaphore.acquire();
+                    // Take a video from queue
+                    if (!videoQueue.isEmpty()) {
+                        socket = videoQueue.take();
+                    }
+                    queueSemaphore.release();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
 
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+                if (socket != null) {
+                    System.out.println("Processing: " + socket.getInetAddress());
+                    try {
+                        receiveAndSaveVideo(socket);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
             }
-
-            System.out.println("Processing video: ");
-            receiveAndSaveVideo();
         }
     }
 
-    public void receiveAndSaveVideo() {
+    public void receiveAndSaveVideo(Socket socket) throws IOException {
+        DataInputStream dis = new DataInputStream(socket.getInputStream());
 
+        // Read filename length and filename
+        int fileNameLength = dis.readInt();
+        byte[] fileNameBytes = new byte[fileNameLength];
+        dis.readFully(fileNameBytes);
+        String fileName = new String(fileNameBytes);
+
+        // Read file size
+        long fileSize = dis.readLong();
+
+        // Save to file
+        File outputFile = new File(saveDirectory, fileName);
+        try (FileOutputStream fos = new FileOutputStream(outputFile)) {
+            byte[] buffer = new byte[4096];
+            long remaining = fileSize;
+            int bytesRead;
+
+            while (remaining > 0 && (bytesRead = dis.read(buffer, 0, (int)Math.min(buffer.length, remaining))) != -1) {
+                fos.write(buffer, 0, bytesRead);
+                remaining -= bytesRead;
+            }
+        }
+
+        System.out.println("Video saved to: " + outputFile.getAbsolutePath());
+        dis.close();
+        socket.close();
+    }
+
+    public void stop() {
+        this.isRunning = false;
+        System.out.println("Stopping consumer...");
     }
 }
