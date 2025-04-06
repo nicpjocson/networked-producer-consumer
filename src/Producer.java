@@ -1,22 +1,8 @@
 import java.io.*;
 import java.net.Socket;
 import java.util.Properties;
-import java.util.concurrent.BlockingQueue;
 
 public class Producer {
-
-    private static final String HOST = "127.0.0.1";
-    private static final int PORT = 12345;
-   // private static final int BUFFER_SIZE = 1024;
-
-    // idk change the name of the folders
-    private static final String[] FOLDERS = {
-        "folder1",
-        "folder2",
-        "folder3",
-    };
-    
-    
     public static int getInputsP() {
         //Config values
         Properties config = new Properties();
@@ -51,63 +37,15 @@ public class Producer {
 
         return NUM_PRODUCERS;
     }
-    /*
-    public static int getInputsQ() {
-        //Config values
-        Properties config = new Properties();
-        try (InputStream input = new FileInputStream("config.properties")) {
-            config.load(input);
-        } catch (IOException e) {
-            System.out.println("Failed to load configuration file: " + e.getMessage());
-            return -1;
-        }
-
-        // Retrieve the value from the config
-        String q = config.getProperty("q");
-        int QUEUE_LENGTH;
-
-        if (q == null || q.isEmpty()) {
-            System.out.println("Configuration property 'q' not found or is empty.");
-            return -1;
-        }
-
-        try {
-            QUEUE_LENGTH = Integer.parseInt(q);
-            
-            // Check if the value is negative
-            if (QUEUE_LENGTH <= 0) {
-                System.out.println("Queue Length cannot be 0 or negative.");
-                return -1;
-            }    
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid number format or out of integer bounds for q.");
-            return -1;
-        }
-
-        return QUEUE_LENGTH;
-    }
-    */
     
     public static void main(String[] args) {
+        int consumerHost = 0;
+        int consumerPort = 12345;
         int NUM_PRODUCERS = getInputsP();
-        // int QUEUE_LENGTH = getInputsQ();
         if (NUM_PRODUCERS == -1) {
             System.out.println("Failed to load configuration values.");
             return;
         }
-
-        /*
-        if (QUEUE_LENGTH == -1) {
-            System.out.println("Failed to load configuration values.");
-            return;
-        }
-        */
-
-        // System.out.println("Queue Length: " + QUEUE_LENGTH);
-
-        System.out.println("Producers: " + NUM_PRODUCERS);
-
-        // BlockingQueue<File> QUEUE = new ArrayBlockingQueue<>(QUEUE_LENGTH);
 
         /* 
         //making da thread pool
@@ -121,85 +59,68 @@ public class Producer {
         executor.shutdown();
         */
     }
-
 }
 
 class ProducerThread implements Runnable {
 
-    private String HOST;
-    private int PORT;
-    private String FOLDER;
-    private final BlockingQueue<File> QUEUE;
+    private String consumerHost;
+    private int consumerPort;
+    private String folder;
 
-    public ProducerThread(String HOST, int PORT, String FOLDER, BlockingQueue<File> QUEUE) {
-        this.HOST = HOST;
-        this.PORT = PORT;
-        this.FOLDER = FOLDER;
-        this.QUEUE = QUEUE;
+    public ProducerThread(String consumerHost, int consumerPort, String folder) {
+        this.consumerHost = consumerHost;
+        this.consumerPort = consumerPort;
+        this.folder = folder;
     }
 
     @Override
     public void run() {
-        File chosenFolder = new File(FOLDER);
+        sendVideosFromFolder();
+    }
 
-        if (!chosenFolder.exists()) {
-            System.out.println("Folder does not exist");
-            return;
-        }
+    private void sendVideosFromFolder() {
+        File folder = new File(this.folder);
+        File[] files = folder.listFiles((dir, name) -> name.endsWith(".mp4")); // TODO: not sure what extensions it accepts
 
-        File[] files = chosenFolder.listFiles((dir, name) -> name.endsWith(".mp4"));
         if (files == null) {
-            System.out.println("No files found in folder");
+            System.err.println("Invalid folder or no videos: " + folder);
             return;
         }
 
         for (File file : files) {
             try {
-                if (!QUEUE.offer(file)) {
-                    System.out.println("Queue is full. Dropping file: " + file.getName());
-                } else {
-                    System.out.println("Added file to queue: " + file.getName());
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-
-        while (!QUEUE.isEmpty()) {
-            try {
-                File file = QUEUE.take();
-                sendToConsumer(file);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                e.printStackTrace();
+                sendVideo(file);
+                // Thread.sleep(1000); // Simulate upload interval
+            } catch (IOException e) {
+                System.err.println("Failed to send video: " + file.getName() + " -> " + e.getMessage());
             }
         }
     }
 
-    private void sendToConsumer (File file){
-        try (Socket socket = new Socket(HOST, PORT);
-             DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
-             FileInputStream fis = new FileInputStream(file)) {
+    private void sendVideo(File videoFile) throws IOException {
+        try (Socket socket = new Socket(this.consumerHost, this.consumerPort);
+            DataOutputStream dos = new DataOutputStream(socket.getOutputStream())) {
+            FileInputStream fis = new FileInputStream(videoFile);
 
-            dos.writeUTF(file.getName());
-            dos.flush();
+            String fileName = videoFile.getName();
+            byte[] fileNameBytes = fileName.getBytes();
+            long fileSize = videoFile.length();
 
-            long fileSize = file.length();
-            dos.writeLong(file.length());
-            dos.flush();
+            // Send filename length and name
+            dos.writeInt(fileNameBytes.length);
+            dos.write(fileNameBytes);
 
+            // Send file size
+            dos.writeLong(fileSize);
 
-            byte[] buffer = new byte[8192];
-            int read;
-            while ((read = fis.read(buffer)) != -1) {
-                dos.write(buffer, 0, read);
+            // Send file contents
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                dos.write(buffer, 0, bytesRead);
             }
-            dos.flush();
 
-            System.out.println("File " + file.getName() + " sent to consumer");
-
-        } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("Uploaded to Consumer on Port: " + fileName);
         }
     }
 }
