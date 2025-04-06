@@ -2,4 +2,4 @@
 *.class
 
 # Ignore all files inside consumer_videos folder
-src/consumer_videos/*
+consumer_videos/*
