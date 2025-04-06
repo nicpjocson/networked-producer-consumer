@@ -77,7 +77,6 @@ class ProducerThread implements Runnable {
     @Override
     public void run() {
         sendVideosFromFolder();
-        System.out.println(this.folder);
     }
 
     private void sendVideosFromFolder() {
@@ -123,6 +122,7 @@ class ProducerThread implements Runnable {
             }
 
             System.out.println("Uploaded to Consumer on Port: " + fileName);
+            socket.close(); // TODO: Do I close this?
         }
     }
 }
