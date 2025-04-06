@@ -52,53 +52,79 @@
 </head>
 <body>
     <div class="container" id="boxContainer"></div>
+
     <script>
-        async function fetchVideos() {
-            try {
-                const response = await fetch('http://localhost:8080/videos/list');
-                const videos = await response.json();
-                createBoxes(videos);
-            } catch (error) {
-                console.error('Error fetching videos:', error);
-            }
+        // Injected values from the server
+        const pValue = parseInt("{{p_value}}"); // Convert to an integer
+        const videoFilenames = "{{video_filenames}}".split(","); // Get the video filenames from the server
+        const saveDirectory = "{{save_directory}}"; // Get the save directory (e.g., 'consumer_videos')
+
+        // Verify if the number of video filenames matches pValue
+        if (videoFilenames.length !== pValue) {
+            console.error("Mismatch between pValue and number of video filenames.");
         }
 
-        function createBoxes(videos) {
+        // Function to create thumbnails from video
+        function generateThumbnail(videoElement, callback) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size to match the video
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            
+            // Draw the current frame of the video onto the canvas
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            
+            // Create an image from the canvas
+            const thumbnailUrl = canvas.toDataURL();
+            callback(thumbnailUrl); // Return the thumbnail image URL to use
+        }
+
+        // Create 'p' number of boxes dynamically with video filenames
+        function createBoxes(pValue, filenames, directory) {
             const container = document.getElementById('boxContainer');
-            videos.forEach(video => {
+            for (let i = 0; i < pValue; i++) {
                 const box = document.createElement('div');
                 box.className = 'box';
 
+                // Create container for each video
                 const videoContainer = document.createElement('div');
                 videoContainer.className = 'video-container';
 
-                const thumbnail = document.createElement('img');
-                thumbnail.className = 'thumbnail';
-                thumbnail.src = 'placeholder_thumbnail.png';
-                thumbnail.alt = video.title;
-
                 const videoElement = document.createElement('video');
-                videoElement.src = video.videoSrc;
+                videoElement.src = directory + '/' + filenames[i];
                 videoElement.muted = true;
                 videoElement.preload = "auto";
                 videoElement.loop = false;
                 videoElement.controls = true;
 
-                videoContainer.appendChild(thumbnail);
+                // Wait until the video metadata is loaded (to access video dimensions)
+                videoElement.addEventListener('loadedmetadata', () => {
+                    // Generate the thumbnail after the video metadata is loaded
+                    generateThumbnail(videoElement, (thumbnailUrl) => {
+                        const thumbnail = document.createElement('img');
+                        thumbnail.className = 'thumbnail';
+                        thumbnail.src = thumbnailUrl; // Set the thumbnail to the video frame
+                        thumbnail.alt = filenames[i];
+                        videoContainer.appendChild(thumbnail); // Append the thumbnail to the container
+                    });
+                });
+
                 videoContainer.appendChild(videoElement);
 
+                // 10-second video preview on hover
                 videoContainer.addEventListener('mouseenter', () => {
-                    thumbnail.style.display = 'none';
                     videoElement.style.display = 'block';
                     videoElement.currentTime = 0;
                     videoElement.play();
-                    setTimeout(() => videoElement.pause(), 10000); // 10 second preview
+                    setTimeout(() => videoElement.pause(), 10000);
                 });
 
+                // Hide  video/show thumbnail on mouse leave
                 videoContainer.addEventListener('mouseleave', () => {
                     videoElement.pause();
                     videoElement.style.display = 'none';
-                    thumbnail.style.display = 'block';
                 });
 
                 // Fullscreen on click
@@ -117,16 +143,15 @@
 
                 const title = document.createElement('div');
                 title.className = 'title';
-                title.textContent = video.title;
+                title.textContent = filenames[i];
 
                 box.appendChild(videoContainer);
                 box.appendChild(title);
                 container.appendChild(box);
-            });
+            }
         }
 
-        // Fetch and create boxes when the page loads
-        fetchVideos();
-    </script>
+        createBoxes(pValue, videoFilenames, saveDirectory);
+    </script>       
 </body>
 </html>
