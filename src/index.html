@@ -55,14 +55,8 @@
 
     <script>
         // Injected values from the server
-        const pValue = parseInt("{{p_value}}"); // Convert to an integer
         const videoFilenames = "{{video_filenames}}".split(","); // Get the video filenames from the server
         const saveDirectory = "{{save_directory}}"; // Get the save directory (e.g., 'consumer_videos')
-
-        // Verify if the number of video filenames matches pValue
-        if (videoFilenames.length !== pValue) {
-            console.error("Mismatch between pValue and number of video filenames.");
-        }
 
         // Function to create thumbnails from video
         function generateThumbnail(videoElement, callback) {
@@ -82,9 +76,9 @@
         }
 
         // Create 'p' number of boxes dynamically with video filenames
-        function createBoxes(pValue, filenames, directory) {
+        function createBoxes(filenames, directory) {
             const container = document.getElementById('boxContainer');
-            for (let i = 0; i < pValue; i++) {
+            for (let i = 0; i < videoFilenames.length; i++) {
                 const box = document.createElement('div');
                 box.className = 'box';
 
@@ -151,7 +145,7 @@
             }
         }
 
-        createBoxes(pValue, videoFilenames, saveDirectory);
+        createBoxes(videoFilenames, saveDirectory);
     </script>       
 </body>
 </html>

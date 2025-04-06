@@ -127,12 +127,9 @@ public class ConsumerApp {
                             if (!filenames.isEmpty()) filenames += ",";
                             filenames += URLEncoder.encode(video, "UTF-8");
                         }
-
-                        int pValue = Producer.getInputsP();
             
                         // Replace placeholders with actual values
                         String content = new String(fileContent);
-                        content = content.replace("{{p_value}}", String.valueOf(pValue)); // Number of video boxes
                         content = content.replace("{{video_filenames}}", filenames);
                         content = content.replace("{{save_directory}}", saveDirectory);
             
