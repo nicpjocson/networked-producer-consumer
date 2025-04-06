@@ -11,6 +11,8 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
 
 public class ConsumerApp {
     public static int[] getInputs() {
@@ -104,34 +106,44 @@ public class ConsumerApp {
             }
         }
 
+        int httpPort = 8081;
         try {
-            // Start HTTP server
-            HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 8080), 0);
-            System.out.println("Starting HTTP server on http://localhost:8080");
+            // Create HTTP server on localhost at port 8081
+            HttpServer server = HttpServer.create(new InetSocketAddress(httpPort), 0);
 
-            // Serve index.html at /index.html
             server.createContext("/index.html", new HttpHandler() {
                 @Override
                 public void handle(HttpExchange exchange) throws IOException {
-                    // File file = new File("src/index.html"); // Direct reference to the index.html file
-                    File file = new File(System.getProperty("user.dir"), "src/index.html");
-                    
+                    File file = new File("src/index.html");
+            
                     if (file.exists()) {
-                        // Read file content
                         FileInputStream fis = new FileInputStream(file);
                         byte[] fileContent = fis.readAllBytes();
                         fis.close();
-                        
-                        // Send response headers (200 OK, content length, content type)
+            
+                        // Modify HTML content
+                        String filenames = "";
+                        for (String video : videoFiles) {
+                            if (!filenames.isEmpty()) filenames += ",";
+                            filenames += URLEncoder.encode(video, "UTF-8");
+                        }
+
+                        int pValue = Producer.getInputsP();
+            
+                        // Replace placeholders with actual values
+                        String content = new String(fileContent);
+                        content = content.replace("{{p_value}}", String.valueOf(pValue)); // Number of video boxes
+                        content = content.replace("{{video_filenames}}", filenames);
+                        content = content.replace("{{save_directory}}", saveDirectory);
+            
+                        // Send modified HTML back
                         exchange.getResponseHeaders().add("Content-Type", "text/html");
-                        exchange.sendResponseHeaders(200, fileContent.length);
-                        
-                        // Write content to response body
+                        exchange.sendResponseHeaders(200, content.getBytes().length);
+            
                         OutputStream os = exchange.getResponseBody();
-                        os.write(fileContent);
+                        os.write(content.getBytes());
                         os.close();
                     } else {
-                        // If file doesn't exist, send 404 response
                         String response = "404 Not Found: index.html";
                         exchange.sendResponseHeaders(404, response.getBytes().length);
                         OutputStream os = exchange.getResponseBody();
@@ -140,9 +152,49 @@ public class ConsumerApp {
                     }
                 }
             });            
-            
-            // Start the server
+
+            // Serve video files at /consumer_videos/filename
+            server.createContext("/consumer_videos", new HttpHandler() {
+                @Override
+                public void handle(HttpExchange exchange) throws IOException {
+                    // Extract video filename from request URI
+                    String path = exchange.getRequestURI().getPath();
+                    // Decode URL-encoded filename to handle spaces and special characters
+                    String filename = URLDecoder.decode(path.substring("/consumer_videos/".length()), "UTF-8");
+
+                    // Set video's directory
+                    File videoFile = new File(saveDirectory + "/" + filename);
+
+                    if (videoFile.exists() && videoFile.isFile()) {
+                        String contentType = "video/mp4";
+
+                        // Set headers for video
+                        exchange.getResponseHeaders().add("Content-Type", contentType);
+                        exchange.sendResponseHeaders(200, videoFile.length());
+
+                        // Stream video
+                        try (FileInputStream fis = new FileInputStream(videoFile);
+                            OutputStream os = exchange.getResponseBody()) {
+
+                            byte[] buffer = new byte[4096];
+                            int bytesRead;
+                            while ((bytesRead = fis.read(buffer)) != -1) {
+                                os.write(buffer, 0, bytesRead);
+                            }
+                        }
+                    } else {
+                        String response = "404 Not Found: Video " + filename;
+                        exchange.sendResponseHeaders(404, response.getBytes().length);
+                        OutputStream os = exchange.getResponseBody();
+                        os.write(response.getBytes());
+                        os.close();
+                    }
+                }
+            });
+
+            // Start server
             server.start();
+            System.out.println("Server started at http://localhost:" + httpPort);
         } catch (IOException e) {
             System.out.println("Error starting HTTP server: " + e.getMessage());
         }
