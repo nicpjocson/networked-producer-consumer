@@ -6,6 +6,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpExchange;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+
 public class ConsumerApp {
     public static int[] getInputs() {
         // Config values
@@ -98,8 +104,51 @@ public class ConsumerApp {
             }
         }
 
-        int port = 12345; // Consumer listens on this port
-        Consumer consumer = new Consumer(port, NUM_CONSUMERS, QUEUE_LENGTH, saveDirectory);
+        try {
+            // Start HTTP server
+            HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 8080), 0);
+            System.out.println("Starting HTTP server on http://localhost:8080");
+
+            // Serve index.html at /index.html
+            server.createContext("/index.html", new HttpHandler() {
+                @Override
+                public void handle(HttpExchange exchange) throws IOException {
+                    // File file = new File("src/index.html"); // Direct reference to the index.html file
+                    File file = new File(System.getProperty("user.dir"), "src/index.html");
+                    
+                    if (file.exists()) {
+                        // Read file content
+                        FileInputStream fis = new FileInputStream(file);
+                        byte[] fileContent = fis.readAllBytes();
+                        fis.close();
+                        
+                        // Send response headers (200 OK, content length, content type)
+                        exchange.getResponseHeaders().add("Content-Type", "text/html");
+                        exchange.sendResponseHeaders(200, fileContent.length);
+                        
+                        // Write content to response body
+                        OutputStream os = exchange.getResponseBody();
+                        os.write(fileContent);
+                        os.close();
+                    } else {
+                        // If file doesn't exist, send 404 response
+                        String response = "404 Not Found: index.html";
+                        exchange.sendResponseHeaders(404, response.getBytes().length);
+                        OutputStream os = exchange.getResponseBody();
+                        os.write(response.getBytes());
+                        os.close();
+                    }
+                }
+            });            
+            
+            // Start the server
+            server.start();
+        } catch (IOException e) {
+            System.out.println("Error starting HTTP server: " + e.getMessage());
+        }
+
+        int consumerPort = 12345; // Consumer listens on this port
+        Consumer consumer = new Consumer(consumerPort, NUM_CONSUMERS, QUEUE_LENGTH, saveDirectory);
         consumer.start();
     }
 }
