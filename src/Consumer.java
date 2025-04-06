@@ -55,21 +55,20 @@ public class Consumer {
                     Socket clientSocket = serverSocket.accept();
                     System.out.println("Received connection from: " + clientSocket.getInetAddress());
 
-                    if (socketQueue.remainingCapacity() == 0) {
-                        // BONUS TODO: Notify Producer Queue is Full
+                    queueSemaphore.acquire();
+                    if (!socketQueue.add(clientSocket)) {
+                        // Queue is full, reject the video and notify producer
                         System.out.println("Queue full, rejecting: " + clientSocket.getInetAddress());
-                        // Send rejection message to the producer before closing the socket
                         try (DataOutputStream dos = new DataOutputStream(clientSocket.getOutputStream())) {
                             dos.writeUTF("Video upload rejected: Queue full");
                         }
                         clientSocket.close();
                     } else {
-                        queueSemaphore.acquire();
-                        socketQueue.put(clientSocket);
-                        queueSemaphore.release();
+                        // Successfully added to queue
                         System.out.println("Placed into Queue: " + clientSocket.getInetAddress());
                         System.out.println("Remaining Capacity Queue: " + socketQueue.remainingCapacity());
                     }
+                    queueSemaphore.release();
 
                 } catch (IOException | InterruptedException e) {
                     System.err.println("Error handling socket: " + e.getMessage());
