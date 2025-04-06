@@ -1,6 +1,8 @@
 import java.io.*;
 import java.net.Socket;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Producer {
     public static int getInputsP() {
@@ -39,30 +41,29 @@ public class Producer {
     }
     
     public static void main(String[] args) {
-        int consumerHost = 0;
+        String consumerHost = "localhost";
         int consumerPort = 12345;
         int NUM_PRODUCERS = getInputsP();
         if (NUM_PRODUCERS == -1) {
             System.out.println("Failed to load configuration values.");
             return;
         }
+        File root = new File("producer_folders");
+        File[] folders = root.listFiles(File::isDirectory);
+        if (folders == null || folders.length < NUM_PRODUCERS) {
+            System.out.println("Not enough folders for producer threads.");
+            return;
+        }
 
-        /* 
-        //making da thread pool
         ExecutorService executor = Executors.newFixedThreadPool(NUM_PRODUCERS);
-        
-        // assinging the folgers to the p threads
         for (int i = 0; i < NUM_PRODUCERS; i++) {
-            String assignedFolder = FOLDERS[i % FOLDERS.length]; 
-            executor.execute(new ProducerThread(HOST, PORT, assignedFolder, QUEUE));
+            executor.execute(new ProducerThread(consumerHost, consumerPort, folders[i].getAbsolutePath()));
         }
         executor.shutdown();
-        */
     }
 }
 
 class ProducerThread implements Runnable {
-
     private String consumerHost;
     private int consumerPort;
     private String folder;
@@ -76,6 +77,7 @@ class ProducerThread implements Runnable {
     @Override
     public void run() {
         sendVideosFromFolder();
+        System.out.println(this.folder);
     }
 
     private void sendVideosFromFolder() {
