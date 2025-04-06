@@ -1,6 +1,9 @@
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 public class ConsumerApp {
@@ -51,6 +54,25 @@ public class ConsumerApp {
         }
     
         return new int[]{NUM_CONSUMERS, QUEUE_LENGTH};
+    }
+
+    public static List<String> getVideoFiles(String folderPath) {
+        File folder = new File(folderPath);
+        List<String> videoFiles = new ArrayList<>();
+        
+        // List all .mp4 files in the given folder
+        if (folder.exists() && folder.isDirectory()) {
+            File[] files = folder.listFiles((dir, name) -> name.endsWith(".mp4"));
+            if (files != null) {
+                for (File file : files) {
+                    videoFiles.add(file.getName()); // Add filename to list
+                }
+            }
+        } else {
+            System.out.println("The folder " + folderPath + " does not exist or is not a directory.");
+        }
+        
+        return videoFiles;
     }
     
     public static void main(String[] args) {
