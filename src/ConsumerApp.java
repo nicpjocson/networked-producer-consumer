@@ -86,8 +86,19 @@ public class ConsumerApp {
         int QUEUE_LENGTH = inputs[1];
         System.out.println("Consumers: " + NUM_CONSUMERS + ", Queue Length: " + QUEUE_LENGTH);
 
-        int port = 12345; // Consumer listens on this port
         String saveDirectory = "consumer_videos";
+        List<String> videoFiles = getVideoFiles(saveDirectory);
+        
+        if (videoFiles.isEmpty()) {
+            System.out.println("No video files found in the 'consumer_videos' folder.");
+        } else {
+            System.out.println("Video files found:");
+            for (String video : videoFiles) {
+                System.out.println(video);
+            }
+        }
+
+        int port = 12345; // Consumer listens on this port
         Consumer consumer = new Consumer(port, NUM_CONSUMERS, QUEUE_LENGTH, saveDirectory);
         consumer.start();
     }
