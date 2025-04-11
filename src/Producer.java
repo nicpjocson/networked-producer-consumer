@@ -131,6 +131,7 @@ class ProducerThread implements Runnable {
                 }
             }
             System.out.println("Uploaded: " + videoFile.getName());
+            socket.close();
         }
     }
 

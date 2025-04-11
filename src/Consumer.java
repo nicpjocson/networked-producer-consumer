@@ -74,20 +74,17 @@ public class Consumer {
                         dos.writeUTF("Duplicate Video!");
                         clientSocket.close();
                         continue;
-                    } else {
-                        dos.writeUTF("Unique Video");
                     }
 
                     queueSemaphore.acquire();
-                    if (!socketQueue.add(clientSocket)) {
+                    if (!socketQueue.offer(clientSocket)) {
                         // Queue is full, reject the video and notify producer
-                        System.out.println("Queue full, rejecting: " + clientSocket.getInetAddress());
+                        System.out.println("Queue full, rejecting...");
                         dos.writeUTF("Video upload rejected: Queue full");
                         clientSocket.close();
                     } else {
                         // Successfully added to queue
-                        System.out.println("Placed into Queue: " + clientSocket.getInetAddress());
-                        System.out.println("Remaining Capacity Queue: " + socketQueue.remainingCapacity());
+                        System.out.println("Placed into Queue. Remaining Capacity Queue: " + socketQueue.remainingCapacity());
                     }
                     queueSemaphore.release();
 
@@ -103,27 +100,22 @@ public class Consumer {
     public void processSocket() {
         while (this.isRunning) {
             Socket socket = null;
-            if (!socketQueue.isEmpty()) {
-                try {
+            try {
+                if (!socketQueue.isEmpty()) {
                     queueSemaphore.acquire();
-                    // Take a video from queue
-                    if (!socketQueue.isEmpty()) {
-                        socket = socketQueue.take();
-                    }
+                    socket = socketQueue.poll();
                     queueSemaphore.release();
-                } catch (InterruptedException e) {
+                }
+                System.out.println("Processing: " + socket.getInetAddress());
+                try {
+                    receiveAndSaveVideo(socket);
+                } catch (IOException e) {
                     e.printStackTrace();
                 }
-
-                if (socket != null) {
-                    System.out.println("Processing: " + socket.getInetAddress());
-                    try {
-                        receiveAndSaveVideo(socket);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
+
         }
     }
 
