@@ -77,17 +77,20 @@
                 // 10-second video preview on hover
                 videoContainer.addEventListener('mouseenter', () => {
                     videoElement.currentTime = 0;
+                    videoElement.muted = true;
                     videoElement.play();
-                    setTimeout(() => videoElement.pause(), 10000);
+                    videoElement._previewTimeout = setTimeout(() => videoElement.pause(), 10000);
                 });
 
                 // Pause video on mouse leave
                 videoContainer.addEventListener('mouseleave', () => {
                     videoElement.pause();
+                    clearTimeout(videoElement._previewTimeout);
                 });
 
                 // Fullscreen on click
                 videoContainer.addEventListener('click', () => {
+                    clearTimeout(videoElement._previewTimeout);
                     videoElement.muted = false;
                     if (videoElement.requestFullscreen) {
                         videoElement.requestFullscreen();
