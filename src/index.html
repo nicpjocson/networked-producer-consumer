@@ -35,7 +35,6 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            display: none;
         }
         .thumbnail {
             width: 100%;
@@ -54,35 +53,15 @@
     <div class="container" id="boxContainer"></div>
 
     <script>
-        // Injected values from the server
-        const videoFilenames = "{{video_filenames}}".split(","); // Get the video filenames from the server
-        const saveDirectory = "{{save_directory}}"; // Get the save directory (e.g., 'consumer_videos')
+        const videoFilenames = "{{video_filenames}}".split(",");
+        const saveDirectory = "{{save_directory}}";
 
-        // Function to create thumbnails from video
-        function generateThumbnail(videoElement, callback) {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            // Set canvas size to match the video
-            canvas.width = videoElement.videoWidth;
-            canvas.height = videoElement.videoHeight;
-            
-            // Draw the current frame of the video onto the canvas
-            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-            
-            // Create an image from the canvas
-            const thumbnailUrl = canvas.toDataURL();
-            callback(thumbnailUrl); // Return the thumbnail image URL to use
-        }
-
-        // Create 'p' number of boxes dynamically with video filenames
         function createBoxes(filenames, directory) {
             const container = document.getElementById('boxContainer');
             for (let i = 0; i < videoFilenames.length; i++) {
                 const box = document.createElement('div');
                 box.className = 'box';
 
-                // Create container for each video
                 const videoContainer = document.createElement('div');
                 videoContainer.className = 'video-container';
 
@@ -91,48 +70,35 @@
                 videoElement.muted = true;
                 videoElement.preload = "auto";
                 videoElement.loop = false;
-                videoElement.controls = true;
-
-                // Wait until the video metadata is loaded (to access video dimensions)
-                videoElement.addEventListener('loadedmetadata', () => {
-                    // Generate the thumbnail after the video metadata is loaded
-                    generateThumbnail(videoElement, (thumbnailUrl) => {
-                        const thumbnail = document.createElement('img');
-                        thumbnail.className = 'thumbnail';
-                        thumbnail.src = thumbnailUrl; // Set the thumbnail to the video frame
-                        thumbnail.alt = filenames[i];
-                        videoContainer.appendChild(thumbnail); // Append the thumbnail to the container
-                    });
-                });
+                videoElement.controls = false;
 
                 videoContainer.appendChild(videoElement);
 
                 // 10-second video preview on hover
                 videoContainer.addEventListener('mouseenter', () => {
-                    videoElement.style.display = 'block';
                     videoElement.currentTime = 0;
                     videoElement.play();
                     setTimeout(() => videoElement.pause(), 10000);
                 });
 
-                // Hide  video/show thumbnail on mouse leave
+                // Pause video on mouse leave
                 videoContainer.addEventListener('mouseleave', () => {
                     videoElement.pause();
-                    videoElement.style.display = 'none';
                 });
 
                 // Fullscreen on click
                 videoContainer.addEventListener('click', () => {
+                    videoElement.muted = false;
                     if (videoElement.requestFullscreen) {
                         videoElement.requestFullscreen();
-                    } else if (videoElement.mozRequestFullScreen) { // Firefox
-                        videoElement.mozRequestFullScreen();
-                    } else if (videoElement.webkitRequestFullscreen) { // Chrome, Safari
+                    } else if (videoElement.webkitRequestFullscreen) {
                         videoElement.webkitRequestFullscreen();
-                    } else if (videoElement.msRequestFullscreen) { // IE/Edge
+                    } else if (videoElement.mozRequestFullScreen) {
+                        videoElement.mozRequestFullScreen();
+                    } else if (videoElement.msRequestFullscreen) {
                         videoElement.msRequestFullscreen();
                     }
-                    videoElement.play();
+                    setTimeout(() => videoElement.play(), 100);
                 });
 
                 const title = document.createElement('div');
