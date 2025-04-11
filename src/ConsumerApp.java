@@ -189,6 +189,27 @@ public class ConsumerApp {
                 }
             });
 
+            server.createContext("/api/videos", new HttpHandler() {
+                @Override
+                public void handle(HttpExchange exchange) throws IOException {
+                    List<String> currentVideos = getVideoFiles(saveDirectory);
+            
+                    StringBuilder json = new StringBuilder("[");
+                    for (int i = 0; i < currentVideos.size(); i++) {
+                        json.append("\"").append(URLEncoder.encode(currentVideos.get(i), "UTF-8")).append("\"");
+                        if (i < currentVideos.size() - 1) json.append(",");
+                    }
+                    json.append("]");
+            
+                    exchange.getResponseHeaders().add("Content-Type", "application/json");
+                    exchange.sendResponseHeaders(200, json.toString().getBytes().length);
+            
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(json.toString().getBytes());
+                    }
+                }
+            });            
+
             // Start server
             server.start();
             System.out.println("Server started at http://localhost:" + httpPort);

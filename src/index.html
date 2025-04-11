@@ -53,12 +53,21 @@
     <div class="container" id="boxContainer"></div>
 
     <script>
-        const videoFilenames = "{{video_filenames}}".split(",");
         const saveDirectory = "{{save_directory}}";
 
-        function createBoxes(filenames, directory) {
+        function decodeFilename(name) {
+            try {
+                return decodeURIComponent(name);
+            } catch (e) {
+                return name;
+            }
+        }
+
+        function createBoxes(filenames) {
             const container = document.getElementById('boxContainer');
-            for (let i = 0; i < videoFilenames.length; i++) {
+            container.innerHTML = ''; // Clear existing boxes
+
+            for (let i = 0; i < filenames.length; i++) {
                 const box = document.createElement('div');
                 box.className = 'box';
 
@@ -66,7 +75,7 @@
                 videoContainer.className = 'video-container';
 
                 const videoElement = document.createElement('video');
-                videoElement.src = directory + '/' + filenames[i];
+                videoElement.src = `/${saveDirectory}/` + filenames[i];
                 videoElement.muted = true;
                 videoElement.preload = "auto";
                 videoElement.loop = false;
@@ -74,7 +83,6 @@
 
                 videoContainer.appendChild(videoElement);
 
-                // 10-second video preview on hover
                 videoContainer.addEventListener('mouseenter', () => {
                     videoElement.currentTime = 0;
                     videoElement.muted = true;
@@ -82,31 +90,23 @@
                     videoElement._previewTimeout = setTimeout(() => videoElement.pause(), 10000);
                 });
 
-                // Pause video on mouse leave
                 videoContainer.addEventListener('mouseleave', () => {
                     videoElement.pause();
                     clearTimeout(videoElement._previewTimeout);
                 });
 
-                // Fullscreen on click
                 videoContainer.addEventListener('click', () => {
                     clearTimeout(videoElement._previewTimeout);
                     videoElement.muted = false;
                     if (videoElement.requestFullscreen) {
                         videoElement.requestFullscreen();
-                    } else if (videoElement.webkitRequestFullscreen) {
-                        videoElement.webkitRequestFullscreen();
-                    } else if (videoElement.mozRequestFullScreen) {
-                        videoElement.mozRequestFullScreen();
-                    } else if (videoElement.msRequestFullscreen) {
-                        videoElement.msRequestFullscreen();
                     }
                     setTimeout(() => videoElement.play(), 100);
                 });
 
                 const title = document.createElement('div');
                 title.className = 'title';
-                title.textContent = filenames[i];
+                title.textContent = decodeFilename(filenames[i]);
 
                 box.appendChild(videoContainer);
                 box.appendChild(title);
@@ -114,7 +114,23 @@
             }
         }
 
-        createBoxes(videoFilenames, saveDirectory);
-    </script>       
+        async function fetchVideos() {
+            try {
+                const response = await fetch("/api/videos");
+                const data = await response.json();
+                if (Array.isArray(data)) {
+                    createBoxes(data);
+                }
+            } catch (e) {
+                console.error("Failed to fetch videos:", e);
+            }
+        }
+
+        // Initial load
+        fetchVideos();
+
+        // Refresh every 10 seconds
+        setInterval(fetchVideos, 10000);
+    </script>
 </body>
 </html>
