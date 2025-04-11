@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.Socket;
+import java.security.MessageDigest;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -52,12 +53,15 @@ public class Producer {
         File[] folders = root.listFiles(File::isDirectory);
         if (folders == null || folders.length < NUM_PRODUCERS) {
             System.out.println("Not enough folders for producer threads.");
-            return;
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(NUM_PRODUCERS);
         for (int i = 0; i < NUM_PRODUCERS; i++) {
-            executor.execute(new ProducerThread(consumerHost, consumerPort, folders[i].getAbsolutePath()));
+            if (folders[i] == null) {
+                continue;
+            } else {
+                executor.execute(new ProducerThread(consumerHost, consumerPort, folders[i].getAbsolutePath()));
+            }
         }
         executor.shutdown();
     }
@@ -81,8 +85,7 @@ class ProducerThread implements Runnable {
 
     private void sendVideosFromFolder() {
         File folder = new File(this.folder);
-        File[] files = folder.listFiles((dir, name) -> name.endsWith(".mp4")); // TODO: not sure what extensions it accepts
-
+        File[] files = folder.listFiles((dir, name) -> name.endsWith(".mp4"));
         if (files == null) {
             System.err.println("Invalid folder or no videos: " + folder);
             return;
@@ -93,36 +96,59 @@ class ProducerThread implements Runnable {
                 sendVideo(file);
                 // Thread.sleep(1000); // Simulate upload interval
             } catch (IOException e) {
-                System.err.println("Failed to send video: " + file.getName() + " -> " + e.getMessage());
+                // System.err.println("Error sending video: " + file.getName() + " -> " + e.getMessage());
             }
         }
     }
 
     private void sendVideo(File videoFile) throws IOException {
+        String hash = computeHash(videoFile);
         try (Socket socket = new Socket(this.consumerHost, this.consumerPort);
-            DataOutputStream dos = new DataOutputStream(socket.getOutputStream())) {
-            FileInputStream fis = new FileInputStream(videoFile);
+                DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
+                DataInputStream dis = new DataInputStream(socket.getInputStream())) {
 
-            String fileName = videoFile.getName();
-            byte[] fileNameBytes = fileName.getBytes();
-            long fileSize = videoFile.length();
+            dos.writeUTF(hash);
+            String response = dis.readUTF();
 
-            // Send filename length and name
-            dos.writeInt(fileNameBytes.length);
-            dos.write(fileNameBytes);
-
-            // Send file size
-            dos.writeLong(fileSize);
-
-            // Send file contents
-            byte[] buffer = new byte[4096];
-            int bytesRead;
-            while ((bytesRead = fis.read(buffer)) != -1) {
-                dos.write(buffer, 0, bytesRead);
+            if ("Duplicate Video!".equals(response)) {
+                System.out.println("Duplicate: " + videoFile.getName());
+                return;
+            } else if ("Video upload rejected: Queue full".equals(response)) {
+                System.out.println("Queue full: " + videoFile.getName());
+                return;
             }
 
-            System.out.println("Uploaded to Consumer on Port: " + fileName);
-            socket.close(); // TODO: Do I close this?
+            byte[] nameBytes = videoFile.getName().getBytes();
+            dos.writeInt(nameBytes.length);
+            dos.write(nameBytes);
+
+            dos.writeLong(videoFile.length());
+            try (FileInputStream fis = new FileInputStream(videoFile)) {
+                byte[] buffer = new byte[16384];
+                int bytesRead;
+                while ((bytesRead = fis.read(buffer)) != -1) {
+                    dos.write(buffer, 0, bytesRead);
+                }
+            }
+            System.out.println("Uploaded: " + videoFile.getName());
+        }
+    }
+
+    private String computeHash(File file) throws IOException {
+        try (InputStream fis = new FileInputStream(file)) {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = fis.read(buffer)) != -1) {
+                digest.update(buffer, 0, read);
+            }
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest.digest()) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new IOException("Hash error", e);
         }
     }
 }

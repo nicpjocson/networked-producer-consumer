@@ -1,11 +1,16 @@
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.MessageDigest;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -17,6 +22,7 @@ public class Consumer {
     private boolean isRunning = true;
     private final BlockingQueue<Socket> socketQueue;
     private final Semaphore queueSemaphore = new Semaphore(1);
+    private final Set<String> knownHashes = ConcurrentHashMap.newKeySet();
     
     public Consumer(int port, int numberOfThreads, int queueLength, String saveDirectory) {
         this.port = port;
@@ -28,6 +34,12 @@ public class Consumer {
         File dir = new File(saveDirectory);
         if (!dir.exists()) {
             dir.mkdirs();
+        } else {
+            for (File file : dir.listFiles()) {
+                if (file.isFile()) {
+                    file.delete();
+                }
+            }
         }
     }
 
@@ -53,15 +65,24 @@ public class Consumer {
                 try {
                     // Accept client connections
                     Socket clientSocket = serverSocket.accept();
-                    System.out.println("Received connection from: " + clientSocket.getInetAddress());
+                    DataInputStream dis = new DataInputStream(clientSocket.getInputStream());
+                    DataOutputStream dos = new DataOutputStream(clientSocket.getOutputStream());
+
+                    String hash = dis.readUTF();
+
+                    if (knownHashes.contains(hash)) {
+                        dos.writeUTF("Duplicate Video!");
+                        clientSocket.close();
+                        continue;
+                    } else {
+                        dos.writeUTF("Unique Video");
+                    }
 
                     queueSemaphore.acquire();
                     if (!socketQueue.add(clientSocket)) {
                         // Queue is full, reject the video and notify producer
                         System.out.println("Queue full, rejecting: " + clientSocket.getInetAddress());
-                        try (DataOutputStream dos = new DataOutputStream(clientSocket.getOutputStream())) {
-                            dos.writeUTF("Video upload rejected: Queue full");
-                        }
+                        dos.writeUTF("Video upload rejected: Queue full");
                         clientSocket.close();
                     } else {
                         // Successfully added to queue
@@ -107,35 +128,45 @@ public class Consumer {
     }
 
     public void receiveAndSaveVideo(Socket socket) throws IOException {
-        DataInputStream dis = new DataInputStream(socket.getInputStream());
+        try (DataInputStream dis = new DataInputStream(socket.getInputStream())) {
+            int fileNameLength = dis.readInt();
+            byte[] fileNameBytes = new byte[fileNameLength];
+            dis.readFully(fileNameBytes);
+            String fileName = new String(fileNameBytes);
 
-        // Read filename length and filename
-        int fileNameLength = dis.readInt();
-        byte[] fileNameBytes = new byte[fileNameLength];
-        dis.readFully(fileNameBytes);
-        String fileName = new String(fileNameBytes);
-
-        System.out.println("Received video: " + fileName);
-
-        // Read file size
-        long fileSize = dis.readLong();
-
-        // Save to file
-        File outputFile = new File(saveDirectory, fileName);
-        try (FileOutputStream fos = new FileOutputStream(outputFile)) {
-            byte[] buffer = new byte[4096];
-            long remaining = fileSize;
-            int bytesRead;
-
-            while (remaining > 0 && (bytesRead = dis.read(buffer, 0, (int)Math.min(buffer.length, remaining))) != -1) {
-                fos.write(buffer, 0, bytesRead);
-                remaining -= bytesRead;
+            long fileSize = dis.readLong();
+            File outputFile = new File(saveDirectory, fileName);
+            try (FileOutputStream fos = new FileOutputStream(outputFile)) {
+                byte[] buffer = new byte[16384];
+                long remaining = fileSize;
+                int bytesRead;
+                while (remaining > 0 && (bytesRead = dis.read(buffer, 0, (int)Math.min(buffer.length, remaining))) != -1) {
+                    fos.write(buffer, 0, bytesRead);
+                    remaining -= bytesRead;
+                }
             }
+            knownHashes.add(generateFileChecksum(outputFile));
+            System.out.println("Saved: " + outputFile.getAbsolutePath());
         }
+        socket.close();
+    }
 
-        System.out.println("Video saved to: " + outputFile.getAbsolutePath());
-        dis.close();
-        socket.close(); socket.close(); // TODO: Do I close this?
+    private String generateFileChecksum(File file) throws IOException {
+        try (InputStream fis = new FileInputStream(file)) {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = fis.read(buffer)) != -1) {
+                digest.update(buffer, 0, read);
+            }
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest.digest()) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new IOException("Checksum error", e);
+        }
     }
 
     public void stop() {
