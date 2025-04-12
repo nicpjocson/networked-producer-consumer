@@ -35,10 +35,14 @@ public class Consumer {
         if (!dir.exists()) {
             dir.mkdirs();
         } else {
-            for (File file : dir.listFiles()) {
-                if (file.isFile()) {
-                    file.delete();
+            if (dir.listFiles().length > 0) {
+                System.out.println("Videos Detected, Deleting...");
+                for (File file : dir.listFiles()) {
+                    if (file.isFile()) {
+                        file.delete();
+                    }
                 }
+                System.out.println("Videos Deleted.");
             }
         }
     }
