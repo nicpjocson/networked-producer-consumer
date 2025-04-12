@@ -94,7 +94,6 @@ class ProducerThread implements Runnable {
         for (File file : files) {
             try {
                 sendVideo(file);
-                // Thread.sleep(1000); // Simulate upload interval
             } catch (IOException e) {
                 // System.err.println("Error sending video: " + file.getName() + " -> " + e.getMessage());
             }
@@ -116,7 +115,12 @@ class ProducerThread implements Runnable {
             } else if ("Video upload rejected: Queue full".equals(response)) {
                 System.out.println("Queue full: " + videoFile.getName());
                 return;
+            } 
+            /*
+            else if ("Ok".equals(response)) {
+                System.out.println("Added to Queue: " + videoFile.getName());
             }
+            */
 
             byte[] nameBytes = videoFile.getName().getBytes();
             dos.writeInt(nameBytes.length);
@@ -124,12 +128,16 @@ class ProducerThread implements Runnable {
 
             dos.writeLong(videoFile.length());
             try (FileInputStream fis = new FileInputStream(videoFile)) {
+                
                 byte[] buffer = new byte[16384];
                 int bytesRead;
                 while ((bytesRead = fis.read(buffer)) != -1) {
                     dos.write(buffer, 0, bytesRead);
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
+            dos.flush();
             System.out.println("Uploaded: " + videoFile.getName());
             socket.close();
         }

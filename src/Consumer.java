@@ -84,6 +84,7 @@ public class Consumer {
                         clientSocket.close();
                     } else {
                         // Successfully added to queue
+                        dos.writeUTF("Ok");
                         System.out.println("Placed into Queue. Remaining Capacity Queue: " + socketQueue.remainingCapacity());
                     }
                     queueSemaphore.release();
@@ -99,23 +100,19 @@ public class Consumer {
 
     public void processSocket() {
         while (this.isRunning) {
-            Socket socket = null;
             try {
-                if (!socketQueue.isEmpty()) {
-                    queueSemaphore.acquire();
-                    socket = socketQueue.poll();
-                    queueSemaphore.release();
-                }
+                Socket socket = this.socketQueue.take();
                 System.out.println("Processing: " + socket.getInetAddress());
+    
                 try {
                     receiveAndSaveVideo(socket);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+    
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
         }
     }
 
