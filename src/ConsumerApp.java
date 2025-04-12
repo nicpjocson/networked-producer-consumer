@@ -161,30 +161,51 @@ public class ConsumerApp {
 
                     // Set video's directory
                     File videoFile = new File(saveDirectory + "/" + filename);
-
-                    if (videoFile.exists() && videoFile.isFile()) {
-                        String contentType = "video/mp4";
-
-                        // Set headers for video
-                        exchange.getResponseHeaders().add("Content-Type", contentType);
-                        exchange.sendResponseHeaders(200, videoFile.length());
-
-                        // Stream video
-                        try (FileInputStream fis = new FileInputStream(videoFile);
-                            OutputStream os = exchange.getResponseBody()) {
-
-                            byte[] buffer = new byte[4096];
-                            int bytesRead;
-                            while ((bytesRead = fis.read(buffer)) != -1) {
-                                os.write(buffer, 0, bytesRead);
-                            }
-                        }
-                    } else {
+            
+                    if (!videoFile.exists() || !videoFile.isFile()) {
                         String response = "404 Not Found: Video " + filename;
                         exchange.sendResponseHeaders(404, response.getBytes().length);
                         OutputStream os = exchange.getResponseBody();
                         os.write(response.getBytes());
                         os.close();
+                        return;
+                    }
+            
+                    String range = exchange.getRequestHeaders().getFirst("Range");
+                    long fileLength = videoFile.length();
+                    long start = 0;
+                    long end = fileLength - 1;
+            
+                    if (range != null && range.startsWith("bytes=")) {
+                        String[] parts = range.substring(6).split("-");
+                        try {
+                            start = Long.parseLong(parts[0]);
+                            if (parts.length > 1 && !parts[1].isEmpty()) {
+                                end = Long.parseLong(parts[1]);
+                            }
+                        } catch (NumberFormatException ignored) {}
+                    }
+            
+                    long contentLength = end - start + 1;
+                    String contentRange = "bytes " + start + "-" + end + "/" + fileLength;
+            
+                    exchange.getResponseHeaders().add("Content-Type", "video/mp4");
+                    exchange.getResponseHeaders().add("Accept-Ranges", "bytes");
+                    exchange.getResponseHeaders().add("Content-Range", contentRange);
+                    exchange.sendResponseHeaders(206, contentLength); // 206 Partial Content
+            
+                    try (OutputStream os = exchange.getResponseBody();
+                         FileInputStream fis = new FileInputStream(videoFile)) {
+            
+                        fis.skip(start);
+                        byte[] buffer = new byte[8192];
+                        long toSend = contentLength;
+                        int len;
+            
+                        while (toSend > 0 && (len = fis.read(buffer, 0, (int)Math.min(buffer.length, toSend))) != -1) {
+                            os.write(buffer, 0, len);
+                            toSend -= len;
+                        }
                     }
                 }
             });
