@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.Scanner;
 
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpHandler;
@@ -15,6 +16,9 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 
 public class ConsumerApp {
+    private static HttpServer server;
+    private static Consumer consumer;
+
     public static int[] getInputs() {
         // Config values
         Properties config = new Properties();
@@ -82,6 +86,20 @@ public class ConsumerApp {
         
         return videoFiles;
     }
+
+    public static void stopApplication() {
+        System.out.println("Shutting down...");
+        if (server != null) {
+            server.stop(0);
+            System.out.println("HTTP server stopped.");
+        }
+        if (consumer != null) {
+            consumer.stop();
+            System.out.println("Consumer stopped.");
+        }
+        System.out.println("Exiting program.");
+        System.exit(0);
+    }
     
     public static void main(String[] args) {
         int[] inputs = getInputs();
@@ -107,9 +125,11 @@ public class ConsumerApp {
         }
 
         int httpPort = 8081;
+        int consumerPort = 12345; // Consumer listens on this port
+
         try {
             // Create HTTP server on localhost at port 8081
-            HttpServer server = HttpServer.create(new InetSocketAddress(httpPort), 0);
+            server = HttpServer.create(new InetSocketAddress(httpPort), 0);
 
             server.createContext("/index.html", new HttpHandler() {
                 @Override
@@ -234,12 +254,25 @@ public class ConsumerApp {
             // Start server
             server.start();
             System.out.println("Server started at http://localhost:" + httpPort);
+
+            consumer = new Consumer(consumerPort, NUM_CONSUMERS, QUEUE_LENGTH, saveDirectory);
+            consumer.start();
+
+            Thread exitThread = new Thread(() -> {
+                Scanner scanner = new Scanner(System.in);
+                while (true) {
+                    System.out.println("Type 'exit' to stop the server and exit the program.");
+                    String input = scanner.nextLine();
+                    if ("exit".equalsIgnoreCase(input)) {
+                        stopApplication();
+                    }
+                }
+            });
+            exitThread.setDaemon(true);
+            exitThread.start();
+
         } catch (IOException e) {
             System.out.println("Error starting HTTP server: " + e.getMessage());
         }
-
-        int consumerPort = 12345; // Consumer listens on this port
-        Consumer consumer = new Consumer(consumerPort, NUM_CONSUMERS, QUEUE_LENGTH, saveDirectory);
-        consumer.start();
     }
 }
